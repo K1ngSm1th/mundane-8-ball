@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Magic 8 Ball</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      background-color: #0f172a;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    
+    .header-title {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #f8fafc;
+    }
+
+    .sub-title {
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      color: #94a3b8;
+    }
+
+    /* Magic 8 Ball Outer Sphere */
+    .ball {
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle at 35% 35%, #334155, #000000 80%);
+      border-radius: 50%;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.7), inset 0 0 20px rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 30px;
+      user-select: none;
+    }
+
+    /* Inner Viewing Window */
+    .window {
+      width: 130px;
+      height: 130px;
+      background-color: #0284c7;
+      border-radius: 50%;
+      border: 4px solid #1e293b;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      text-align: center;
+    }
+
+    /* Floating Triangle & Answer */
+    .answer {
+      font-size: 0.85rem;
+      font-weight: 600;
+      line-height: 1.25;
+      color: #ffffff;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+      transform: scale(0.8);
+    }
+
+    .answer.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Shake Animation */
+    .shaking {
+      animation: shake 0.5s ease-in-out infinite;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      20% { transform: translate(-10px, 8px) rotate(-5deg); }
+      40% { transform: translate(10px, -8px) rotate(5deg); }
+      60% { transform: translate(-8px, -5px) rotate(-3deg); }
+      80% { transform: translate(8px, 5px) rotate(3deg); }
+    }
+
+    /* Action Buttons */
+    .btn {
+      background-color: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .status-text {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 class="header-title" id="appTitle">Magic 8 Ball</h1>
+  <div class="sub-title" id="appSubtitle">Ask a question and shake!</div>
+
+  <div class="ball" id="ball">
+    <div class="window">
+      <div class="answer" id="answer">Shake or Tap to Ask</div>
+    </div>
+  </div>
+
+  <button class="btn" id="actionBtn" onclick="handleAction()">Tap / Enable Shake</button>
+  <div class="status-text" id="statusText">Shake your phone or tap the button</div>
+
+  <script>
+    // 1. Default fallback answers if no custom ones are provided in the URL
+    let answers = [
+      "Outlook says Yes",
+      "Per my previous email",
+      "Let's sync offline",
+      "Approved without edits!",
+      "It's a feature, not a bug",
+      "Ask during standup",
+      "Coffee first, then answer",
+      "Signs point to a 4:30 PM meeting"
+    ];
+
+    // 2. Parse URL parameters for personalization
+    const urlParams = new URLSearchParams(window.location.search);
+    const customName = urlParams.get('name');
+    const customAnswers = urlParams.get('answers');
+
+    if (customName) {
+      document.getElementById('appTitle').innerText = `${customName}'s Magic 8 Ball`;
+      document.getElementById('appSubtitle').innerText = `Personalized for ${customName}`;
+    }
+
+    if (customAnswers) {
+      // Splits pipe-separated answers (e.g., answer1|answer2|answer3)
+      answers = customAnswers.split('|').map(item => item.trim());
+    }
+
+    const ball = document.getElementById('ball');
+    const answerEl = document.getElementById('answer');
+    const statusText = document.getElementById('statusText');
+
+    let isShaking = false;
+    let motionPermissionGranted = false;
+
+    // Trigger Magic 8 Ball logic
+    function getAnswer() {
+      if (isShaking) return;
+      isShaking = true;
+
+      answerEl.classList.remove('visible');
+      ball.classList.add('shaking');
+
+      setTimeout(() => {
+        ball.classList.remove('shaking');
+        const randomIndex = Math.floor(Math.random() * answers.length);
+        answerEl.innerText = answers[randomIndex];
+        answerEl.classList.add('visible');
+        isShaking = false;
+      }, 1000);
+    }
+
+    // Handle button click & iOS Motion Permissions
+    function handleAction() {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        if (!motionPermissionGranted) {
+          DeviceMotionEvent.requestPermission()
+            .then(response => {
+              if (response === 'granted') {
+                motionPermissionGranted = true;
+                window.addEventListener('devicemotion', handleMotion);
+                statusText.innerText = "Shake sensing active!";
+              } else {
+                statusText.innerText = "Shake denied. Use tap button.";
+              }
+              getAnswer();
+            })
+            .catch(() => getAnswer());
+          return;
+        }
+      }
+      getAnswer();
+    }
+
+    // Motion Detection Logic
+    let lastX = 0, lastY = 0, lastZ = 0, lastTime = 0;
+
+    function handleMotion(event) {
+      const current = event.accelerationIncludingGravity;
+      if (!current) return;
+
+      const currentTime = Date.now();
+      if ((currentTime - lastTime) > 100) {
+        const diffTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        const speed = Math.abs(current.x + current.y + current.z - lastX - lastY - lastZ) / diffTime * 10000;
+
+        if (speed > 800) {
+          getAnswer();
+        }
+
+        lastX = current.x;
+        lastY = current.y;
+        lastZ = current.z;
+      }
+    }
+
+    if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission !== 'function') {
+      window.addEventListener('devicemotion', handleMotion);
+      motionPermissionGranted = true;
+    }
+  </script>
+</body>
+</html>
